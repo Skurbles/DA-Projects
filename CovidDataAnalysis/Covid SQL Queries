@@ -1,0 +1,216 @@
+-- Dataset used for this project acquired from https://ourworldindata.org/covid-deaths
+-- Project quereies completed in PopSQL using MySQL database
+
+CREATE TABLE PortfolioProject.covid_deaths (
+    iso_code VARCHAR(20),
+    continent VARCHAR(20),
+    location VARCHAR(35),
+    date_recorded DATE,
+    population BIGINT,
+    total_cases INT,
+    new_cases INT,
+    new_cases_smoothed DECIMAL(10,3),
+    total_deaths INT,
+    new_deaths INT,
+    new_deaths_smoothed DECIMAL(10,3),
+    total_cases_per_million DECIMAL(10,3),
+    new_cases_per_million DECIMAL(9,3),
+    new_cases_smoothed_per_million DECIMAL(9,3),
+    total_deaths_per_million DECIMAL(9,3),
+    new_deaths_per_million DECIMAL(9,3),
+    new_deaths_smoothed_per_million DECIMAL(9,3),
+    reproduction_rate DECIMAL(4,2),
+    icu_patients INT,
+    icu_patients_per_million DECIMAL(7,3),
+    hosp_patients INT,
+    hosp_patients_per_million DECIMAL(9,3),
+    weekly_icu_admissions INT,
+    weekly_icu_admissions_per_million DECIMAL(9,3),
+    weekly_hosp_admissions INT,
+    weekly_hosp_admissions_per_million DECIMAL(9,3)
+);
+
+select * from covid_deaths; -- Testing table creation and layout
+
+DROP TABLE covid_deaths; -- Quick access command in case I run into import issues post data cleaning
+
+
+LOAD DATA INFILE '/usr/local/mysql-8.0.32-macos13-arm64/CovidDeaths.csv' INTO TABLE covid_deaths
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\r\n'
+IGNORE 1 LINES;
+
+CREATE TABLE PortfolioProject.covid_vaccinations (
+   iso_code VARCHAR(20),
+    continent VARCHAR(20),
+    location VARCHAR(35),
+    date_recorded DATE,
+    total_tests BIGINT,
+    new_tests INT,
+    total_tests_per_thousand DECIMAL(10,3),
+    new_tests_per_thousand DECIMAL(10,3),
+    new_tests_smoothed INT,
+    new_tests_smoothed_per_thousand DECIMAL(10,3),
+    positive_rate DECIMAL(10,3),
+    tests_per_case DECIMAL(10,3),
+    tests_units VARCHAR(20),
+    total_vaccinations BIGINT,
+    people_vaccinated BIGINT,
+    people_fully_vaccinated BIGINT,
+    total_boosters BIGINT,
+    new_vaccinations INT,
+    new_vaccinations_smoothed INT,
+    total_vaccinations_per_hundred DECIMAL(10,3),
+    people_vaccinated_per_hundred DECIMAL(10,3),
+    people_fully_vaccinated_per_hundred DECIMAL(12,3),
+    total_boosters_per_hundred DECIMAL(10,3),
+    new_vaccinations_smoothed_per_million INT,
+    new_people_vaccinated_smoothed INT,
+    new_people_vaccinated_smoothed_per_hundred DECIMAL(10,3),
+    stringency_index DECIMAL(10,3),
+    population_density DECIMAL(10,3),
+    median_age DECIMAL(10,3),
+    aged_65_and_older DECIMAL(10,3),
+    aged_70_and_older DECIMAL (10,3),
+    gdp_per_capita DECIMAL(10,3),
+    extreme_poverty DECIMAL(10,3),
+    cardiovasc_death_rate DECIMAL(10,3),
+    diabetes_prevalence DECIMAL(10,3),
+    female_smokers DECIMAL(10,3),
+    male_smokers DECIMAL(10,3),
+    handwashing_facilities DECIMAL(10,3),
+    hospital_beds_per_thousand DECIMAL(10,3),
+    life_expectancy DECIMAL(10,3),
+    human_development_index DECIMAL(10,3),
+    excess_mortality_cumulative_absolute DECIMAL(10,3),
+    excess_mortality_cumulative DECIMAL(10,3),
+    excess_mortality DECIMAL(10,3),
+    excess_mortaliy_cumulative_per_million DECIMAL(10,3)
+
+);
+
+SELECT * FROM PortfolioProject.covid_vaccinations;  -- Testing table creation and layout
+
+DROP TABLE PortfolioProject.covid_vaccinations; -- Quick access command in case I run into import issues post data cleaning
+
+LOAD DATA INFILE '/usr/local/mysql-8.0.32-macos13-arm64/CovidVaccinations.csv' INTO TABLE covid_vaccinations
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\r\n'
+IGNORE 1 LINES;
+
+
+SELECT location, date_recorded, total_cases, new_cases, total_deaths, population
+FROM PortfolioProject.covid_deaths
+ORDER BY 1,2;
+
+--Looking at Total Cases vs Total Deaths
+--Shows likelihood of dying as percentage if you contract Covid in your country
+SELECT location, date_recorded, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM PortfolioProject.covid_deaths
+ORDER BY 1,2;
+
+-- Filtering for relevance per country relevant to me (US)
+SELECT location, date_recorded, total_cases, total_deaths, (total_deaths/total_cases)*100 AS DeathPercentage
+FROM PortfolioProject.covid_deaths
+WHERE location LIKE '%states%'
+ORDER BY 1,2;
+
+-- Looking at Total Cases vs Population
+-- Shows what percentage of population has gotten Covid
+SELECT location, date_recorded, population, total_cases, (total_cases/population)*100 AS DeathPercentage
+FROM PortfolioProject.covid_deaths
+WHERE location LIKE '%states%'
+ORDER BY 1,2;
+
+-- As of 2/16/23 30.4685% of population of US has gotten Covid
+
+-- What countries have highest infection rates compared to population
+SELECT location, population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population))*100 AS PercentPopulationInfected
+FROM PortfolioProject.covid_deaths
+GROUP BY location, population
+ORDER BY PercentPopulationInfected DESC;
+
+-- Showing Countries with highest death count per population
+SELECT location, MAX(total_deaths) AS TotalDeathCount
+FROM PortfolioProject.covid_deaths
+GROUP BY location
+ORDER BY TotalDeathCount DESC;
+
+-- Lets break things down by Worldwide continent
+SELECT continent, MAX(total_deaths) AS TotalDeathCount
+FROM PortfolioProject.covid_deaths
+GROUP BY continent
+ORDER BY TotalDeathCount DESC;
+
+-- GLOBAL NUMBERS
+-- By Date
+SELECT date_recorded, SUM(new_cases) AS TotalCases, SUM(new_deaths) AS TotalDeaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
+FROM PortfolioProject.covid_deaths
+WHERE continent IS NOT NULL
+GROUP BY date_recorded
+ORDER BY 1,2;
+
+-- By Total Time
+SELECT SUM(new_cases) AS TotalCases, SUM(new_deaths) AS TotalDeaths, SUM(new_deaths)/SUM(new_cases)*100 AS DeathPercentage
+FROM PortfolioProject.covid_deaths
+WHERE continent IS NOT NULL
+ORDER BY 1,2;
+
+-- JOIN Test
+
+SELECT *
+FROM PortfolioProject.covid_deaths dea
+JOIN PortfolioProject.covid_vaccinations vac
+    ON dea.location = vac.location
+    AND dea.date_recorded = vac.date_recorded;
+
+    -- Looking at Total Population vs Vaccines
+SELECT dea.continent, dea.location, dea.date_recorded, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date_recorded) AS RollingPeopleVaccinated
+FROM PortfolioProject.covid_deaths dea
+JOIN PortfolioProject.covid_vaccinations vac
+    ON dea.location = vac.location
+    AND dea.date_recorded = vac.date_recorded
+WHERE dea.continent IS NOT NULL
+ORDER BY 2,3;
+
+-- CTE
+
+WITH PopvsVac (continent, location, date_recorded, population, new_vaccinations, RollingPeopleVaccinated)
+AS
+(
+SELECT dea.continent, dea.location, dea.date_recorded, dea.population, vac.new_vaccinations
+, SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date_recorded) AS RollingPeopleVaccinated
+FROM PortfolioProject.covid_deaths dea
+JOIN PortfolioProject.covid_vaccinations vac
+    ON dea.location = vac.location
+    AND dea.date_recorded = vac.date_recorded
+WHERE dea.continent IS NOT NULL
+)
+SELECT *, (RollingPeopleVaccinated/population)*100 AS PercentPopulationVaccinated
+FROM PopvsVac;
+
+-- TEMP TABLE 
+
+DROP TABLE IF EXISTS PercentPopVaccinated;
+
+CREATE TABLE PercentPopVaccinated (
+    continent VARCHAR(35),
+    location VARCHAR(35),
+    date_recorded DATE,
+    population BIGINT,
+    new_vaccinations BIGINT,
+    RollingPeopleVaccinated BIGINT
+);
+
+INSERT INTO PercentPopVaccinated
+SELECT dea.continent, dea.location, dea.date_recorded, dea.population, vac.new_vaccinations,
+SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date_recorded) AS RollingPeopleVaccinated
+FROM PortfolioProject.covid_deaths dea
+JOIN PortfolioProject.covid_vaccinations vac
+    ON dea.location = vac.location
+    AND dea.date_recorded = vac.date_recorded
+WHERE dea.continent IS NOT NULL;
+
+SELECT *, (RollingPeopleVaccinated/population)*100 AS PercentPopulationVaccinated
+FROM PercentPopVaccinated;
